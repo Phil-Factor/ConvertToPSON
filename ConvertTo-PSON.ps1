@@ -32,6 +32,7 @@ function ConvertTo-PSON
 	{
 		If ($inputObject -eq $Null) { $p += '$Null'; return $p } # if it is null return null
 		$padding = [string]'  ' * $NestingLevel # lets just create our left-padding for the block
+        $ArrayEnd=0; #until proven false
 		try
 		{
 			$Type = $inputObject.GetType().Name # we start by getting the object's type
@@ -76,15 +77,15 @@ function ConvertTo-PSON
 				{ @('byte', 'decimal', 'double', 'float', 'single', 'int', 'int32', 'int16', 'long', 'int64', 'sbyte', 'uint16', 'uint32', 'uint64') -contains $_ }
 				{ "$inputObject" } # rendered as is without single quotes
 				'PSNoteProperty' { "$(ConvertTo-PSON -inputObject $inputObject.Value -depth $depth -NestingLevel ($NestingLevel))" }
-				'Array'      { "`r`n$padding@(" + ("$($inputObject | ForEach { ",$(ConvertTo-PSON -inputObject $_ -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring(1)) + "`r`n$padding)" }
-				'HashTable'  { "`r`n$padding@{" + ("$($inputObject.GetEnumerator() | ForEach { "; '$($_.Name)' = " + (ConvertTo-PSON -inputObject $_.Value -depth $depth -NestingLevel ($NestingLevel + 1)) })".Substring(1) + "`r`n$padding}") }
-				'PSObject'   { "`r`n$padding[pscustomobject]@{" + ("$($inputObject.PSObject.Properties | ForEach { "; '$($_.Name)' = " + (ConvertTo-PSON -inputObject $_ -depth $depth -NestingLevel ($NestingLevel + 1)) })".Substring(1) + "`r`n$padding}") }
-				'Dictionary' { "`r`n$padding@{" + ($inputObject.item | ForEach { '; ' + "'$_'" + " = " + (ConvertTo-PSON -inputObject $inputObject.Value[$_] -depth $depth -NestingLevel $NestingLevel+1) }) + '}' }
-				'Generic'    { "`r`n$padding@{" + ("$($inputObject.Keys | ForEach { ";  $_ =  $(ConvertTo-PSON -inputObject $inputObject.$_ -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring(1) + "`r`n$padding}") }
-				'Object'     { "`r`n$padding@{" + ("$($inputObject | Get-Member -membertype properties | Select-Object name | ForEach { ";  $($_.name) =  $(ConvertTo-PSON -inputObject $inputObject.$($_.name) -depth $NestingLevel -NestingLevel ($NestingLevel + 1))" })".Substring(1) + "`r`n$padding}") }
-				'XML'        { "`r`n$padding@{" + ("$($inputObject | Get-Member -membertype properties | where name -ne 'schema' | Select-Object name | ForEach { ";  $($_.name) =  $(ConvertTo-PSON -inputObject $inputObject.$($_.name) -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring(1) + "`r`n$padding}") }
-				'Datatable'  { "`r`n$padding@{" + ("$($inputObject.TableName)=`r`n$padding @(" + "$($inputObject | ForEach { ",$(ConvertTo-PSON -inputObject $_ -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring(1) + "`r`n$padding  )`r`n$padding}") }
-				'DataRow'    { "`r`n$padding@{" + ("$($inputObject | Get-Member -membertype properties | Select-Object name | ForEach { "; $($_.name)=  $(ConvertTo-PSON -inputObject $inputObject.$($_.name) -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring(1) + "}") }
+				'Array'      { "`r`n$padding@(" + ("$($inputObject | ForEach {$ArrayEnd=1; ",$(ConvertTo-PSON -inputObject $_ -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring($ArrayEnd)) + "`r`n$padding)" }
+				'HashTable'  { "`r`n$padding@{" + ("$($inputObject.GetEnumerator() | ForEach {$ArrayEnd=1; "; '$($_.Name)' = " + (ConvertTo-PSON -inputObject $_.Value -depth $depth -NestingLevel ($NestingLevel + 1)) })".Substring($ArrayEnd) + "`r`n$padding}") }
+				'PSObject'   { "`r`n$padding[pscustomobject]@{" + ("$($inputObject.PSObject.Properties | ForEach {$ArrayEnd=1; "; '$($_.Name)' = " + (ConvertTo-PSON -inputObject $_ -depth $depth -NestingLevel ($NestingLevel + 1)) })".Substring($ArrayEnd) + "`r`n$padding}") }
+				'Dictionary' { "`r`n$padding@{" + ($inputObject.item | ForEach {$ArrayEnd=1; '; ' + "'$_'" + " = " + (ConvertTo-PSON -inputObject $inputObject.Value[$_] -depth $depth -NestingLevel $NestingLevel+1) }) + '}' }
+				'Generic'    { "`r`n$padding@{" + ("$($inputObject.Keys | ForEach {$ArrayEnd=1; ";  $_ =  $(ConvertTo-PSON -inputObject $inputObject.$_ -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring($ArrayEnd) + "`r`n$padding}") }
+				'Object'     { "`r`n$padding@{" + ("$($inputObject | Get-Member -membertype properties | Select-Object name | ForEach {$ArrayEnd=1; ";  $($_.name) =  $(ConvertTo-PSON -inputObject $inputObject.$($_.name) -depth $NestingLevel -NestingLevel ($NestingLevel + 1))" })".Substring($ArrayEnd) + "`r`n$padding}") }
+				'XML'        { "`r`n$padding@{" + ("$($inputObject | Get-Member -membertype properties | where name -ne 'schema' | Select-Object name | ForEach {$ArrayEnd=1; ";  $($_.name) =  $(ConvertTo-PSON -inputObject $inputObject.$($_.name) -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring($ArrayEnd) + "`r`n$padding}") }
+				'Datatable'  { "`r`n$padding@{" + ("$($inputObject.TableName)=`r`n$padding @(" + "$($inputObject | ForEach {$ArrayEnd=1; ",$(ConvertTo-PSON -inputObject $_ -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring($ArrayEnd) + "`r`n$padding  )`r`n$padding}") }
+				'DataRow'    { "`r`n$padding@{" + ("$($inputObject | Get-Member -membertype properties | Select-Object name | ForEach {$ArrayEnd=1; "; $($_.name)=  $(ConvertTo-PSON -inputObject $inputObject.$($_.name) -depth $depth -NestingLevel ($NestingLevel + 1))" })".Substring($ArrayEnd) + "}") }
 				default { "'$inputObject'" }
 			}
 		}
